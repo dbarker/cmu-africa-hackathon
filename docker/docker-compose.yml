@@ -1,0 +1,96 @@
+networks:
+  otel-network:
+
+volumes:
+  grafana_data:
+    driver: local
+  mimir_data:
+    driver: local
+  loki_data:
+    driver: local
+  tempo_data:
+    driver: local
+
+services:
+  ros_dev:
+    build:
+      context: ..
+      dockerfile: ./docker/ros_dev/Dockerfile.dev
+      args:
+        ROS_DISTRO: ${OTEL_ROS_DISTRO}
+    container_name: otel_ros_${OTEL_ROS_DISTRO}_dev
+    image: otel_ros_${OTEL_ROS_DISTRO}_dev:latest
+    hostname: dev_host
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XDG_RUNTIME_DIR=/tmp/runtime-developer
+      - ROS_DOMAIN_ID=0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ../../cmu-africa-hackathon:/home/devuser/workspace/src/cmu-africa-hackathon
+    tty: true
+    stdin_open: true
+    networks:
+      - otel-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    volumes:
+      - ./otel-collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - "4317:4317"  # OTLP gRPC
+    networks:
+      - otel-network
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin 
+      - GF_SECURITY_ADMIN_PASSWORD=admin 
+      - GF_AUTH_ANONYMOUS_ENABLED=true 
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin 
+      - GF_AUTH_DISABLE_LOGIN_FORM=true 
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    depends_on:
+      - loki
+      - tempo
+      - mimir
+    volumes:
+      - grafana_data:/var/lib/grafana 
+      - ./grafana/grafana/provisioning/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml 
+    networks:
+      - otel-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: -config.file=/etc/loki/loki.yaml
+    volumes:
+      - ./grafana/loki:/etc/loki
+      - loki_data:/loki
+    networks:
+      - otel-network
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: -config.file=/etc/tempo/tempo.yaml
+    volumes:
+      - ./grafana/tempo:/etc/tempo
+      - tempo_data:/var/tempo
+    networks:
+      - otel-network
+
+  mimir:
+    image: grafana/mimir:latest
+    container_name: mimir
+    command: -config.file=/etc/mimir/mimir.yaml
+    volumes:
+      - ./grafana/mimir/mimir.yaml:/etc/mimir/mimir.yaml
+      - mimir_data:/mimir
+    networks:
+      - otel-network

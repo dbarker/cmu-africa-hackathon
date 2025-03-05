@@ -1,0 +1,39 @@
+{
+    "name": "cmu-africa-hackathon",
+    "dockerComposeFile": [
+        "../docker/docker-compose.yml"
+    ],
+    "service": "ros_dev",
+    "workspaceFolder": "/home/devuser/workspace/src/cmu-africa-hackathon",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "C_Cpp.clang_format_fallbackStyle": "none",
+                "C_Cpp.clang_format_style": "file",
+                "editor.formatOnSave": true,
+                "terminal.integrated.shellIntegration.enabled": true,
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash"
+                    }
+                },
+                "terminal.integrated.cwd": "/home/devuser/workspace"
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.cpptools-themes",
+                "ms-vscode.cmake-tools",
+                "ms-python.python",
+                "ms-python.debugpy",
+                "ms-python.vscode-pylance",
+                "ms-azuretools.vscode-docker",
+                "redhat.vscode-xml",
+                "redhat.vscode-yaml"
+            ]
+        }
+    },
+    "containerUser": "devuser",
+    "remoteUser": "devuser"
+}

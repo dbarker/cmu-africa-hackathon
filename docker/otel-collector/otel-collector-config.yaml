@@ -1,0 +1,59 @@
+receivers:
+
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+
+  batch:
+
+  transform:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          # Copy instrumentation scope attributes to spans 
+          - merge_maps(attributes, instrumentation_scope.attributes, "insert")
+
+    metric_statements:
+      - context: datapoint
+        statements:
+          # Copy instrumentation scope attributes to metrics
+          - merge_maps(attributes, instrumentation_scope.attributes, "insert")
+          - set(attributes["service.name"], resource.attributes["service.name"])
+          - set(attributes["host.name"], resource.attributes["host.name"])
+          - set(attributes["host.arch"], resource.attributes["host.arch"])
+
+exporters:
+
+  otlphttp/metrics:
+    endpoint: http://mimir:9009/otlp
+    tls:
+      insecure: true
+
+  otlphttp/traces:
+    endpoint: http://tempo:4418
+    tls:
+      insecure: true
+
+  otlphttp/logs:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform, batch]
+      exporters: [otlphttp/traces]
+    metrics:
+      receivers: [otlp]
+      processors: [transform, batch]
+      exporters: [otlphttp/metrics]
+    logs:
+      receivers: [otlp]
+      processors: [transform, batch]
+      exporters: [otlphttp/logs]

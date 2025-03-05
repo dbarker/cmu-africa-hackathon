@@ -1,0 +1,86 @@
+ARG ROS_DISTRO=jazzy
+# ==============================
+# Stage 1: Builder Image
+# ==============================
+FROM ros:${ROS_DISTRO}-ros-base AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+ARG PROTOBUF_VERSION=21.3
+ARG GRPC_BRANCH=v1.49.2
+ARG OPENTELEMETRY_CPP_BRANCH=main
+
+WORKDIR /build
+COPY ./scripts/install_build_tools.sh ./scripts/
+
+# Install build tools and document build versions 
+RUN /build/scripts/install_build_tools.sh 
+
+# Install dependencies
+COPY ./scripts/install_protobuf.sh  \
+    ./scripts/install_grpc.sh  \
+    ./scripts/  
+
+RUN /build/scripts/install_protobuf.sh ${PROTOBUF_VERSION}
+RUN /build/scripts/install_grpc.sh ${GRPC_BRANCH} 
+
+# Install OpenTelemetry C++ SDK
+COPY ./scripts/install_opentelemetry-cpp.sh ./scripts/
+RUN /build/scripts/install_opentelemetry-cpp.sh ${OPENTELEMETRY_CPP_BRANCH} 
+
+# ==============================
+# Stage 2: Development Image
+# ==============================
+FROM osrf/ros:${ROS_DISTRO}-desktop AS ros_dev 
+
+ARG USERNAME=devuser
+ARG UID=1000
+ARG GID=${UID}
+ARG OPENTELEMETRY_PYTHON_BRANCH=main
+ARG WORKSPACE_DIR=/home/${USERNAME}/workspace
+ARG WHEELHOUSE_DIR=/home/${USERNAME}/.opt/opentelemetry_wheelhouse
+
+ARG PROTOBUF_VERSION
+ARG GRPC_BRANCH
+ARG OPENTELEMETRY_CPP_BRANCH
+ARG BOOST_VERSION
+
+ENV USER=${USERNAME}
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+ENV WORKSPACE_DIR=${WORKSPACE_DIR}
+ENV BUILD_OPENTELEMETRY_PYTHON_BRANCH=${OPENTELEMETRY_PYTHON_BRANCH}
+ENV BUILD_PROTOBUF_VERSION=${PROTOBUF_VERSION}
+ENV BUILD_GRPC_BRANCH=${GRPC_BRANCH}
+ENV BUILD_OPENTELEMETRY_CPP_BRANCH=${OPENTELEMETRY_CPP_BRANCH}
+ENV BUILD_BOOST_VERSION=${BOOST_VERSION}
+
+WORKDIR /build
+
+# Install development tools and create a user
+COPY ./scripts/install_dev_tools.sh \
+    ./scripts/setup_user.sh \
+    /build/scripts/
+
+RUN ./scripts/install_dev_tools.sh && \
+    /build/scripts/setup_user.sh ${USERNAME} ${GID} ${UID}
+
+# Copy libraries and binaries from the builder stage
+COPY --from=builder /usr/local/lib /usr/local/lib 
+COPY --from=builder /usr/local/bin /usr/local/bin 
+COPY --from=builder /usr/local/include /usr/local/include
+
+USER ${USERNAME}
+
+# Create the workspace with user permissions and install OpenTelemetry Python API/SDK 
+COPY ./scripts/install_opentelemetry-python.sh \
+    /build/scripts/
+
+WORKDIR ${WORKSPACE_DIR}
+
+RUN echo "source /opt/ros/\${ROS_DISTRO}/setup.bash" >> /home/devuser/.bashrc &&\
+    mkdir -p ${WORKSPACE_DIR}/src && mkdir -p ${WHEELHOUSE_DIR}
+RUN cd ${WHEELHOUSE_DIR} && /build/scripts/install_opentelemetry-python.sh ${OPENTELEMETRY_PYTHON_BRANCH} ${WHEELHOUSE_DIR} "BUILD_AND_INSTALL"
+
+CMD ["/bin/bash"]
