@@ -22,11 +22,8 @@ services:
     image: otel_ros_${OTEL_ROS_DISTRO}_dev:latest
     hostname: dev_host
     environment:
-      - DISPLAY=${DISPLAY}
-      - XDG_RUNTIME_DIR=/tmp/runtime-developer
       - ROS_DOMAIN_ID=0
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ../../cmu-africa-hackathon:/home/devuser/workspace/src/cmu-africa-hackathon
     tty: true
     stdin_open: true
