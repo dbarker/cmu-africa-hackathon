@@ -24,10 +24,10 @@ OtelProviderContext::OtelProviderContext(
 {
   // The resource sets the process level attributes on telemetry signal data
   auto resource = opentelemetry::sdk::resource::Resource::Create(
-      { { "service.name", "simple_process" }, { "service.version", "0.1.0" } });
+      { { "service.name", service_name}, { "service.version", service_version} });
 
   auto grpc_options = opentelemetry::exporter::otlp::OtlpGrpcExporterOptions();
-  grpc_options.endpoint = "otel-collector:4317";
+  grpc_options.endpoint = endpoint;
 
   auto grpc_client = opentelemetry::exporter::otlp::OtlpGrpcClientFactory::Create(grpc_options);
 
